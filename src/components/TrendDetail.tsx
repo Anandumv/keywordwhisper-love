@@ -3,17 +3,31 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 import { TrendData } from "@/types/trend";
 import { formatDistanceToNow } from "date-fns";
+import { Download, Send, Save } from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 interface TrendDetailProps {
   trend: TrendData | null;
   isLoading: boolean;
+  onUpdateTrend?: (updatedTrend: TrendData) => void;
 }
 
-const TrendDetail = ({ trend, isLoading }: TrendDetailProps) => {
+const TrendDetail = ({ trend, isLoading, onUpdateTrend }: TrendDetailProps) => {
   const [activeTab, setActiveTab] = useState("summary");
+  const [message, setMessage] = useState("");
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const { toast } = useToast();
 
   if (isLoading && !trend) {
     return (
@@ -79,6 +93,82 @@ const TrendDetail = ({ trend, isLoading }: TrendDetailProps) => {
       source: trend.news_item_source3,
     },
   ].filter((item) => item.url && item.title);
+  
+  const generateKeywordReport = () => {
+    setGeneratingReport(true);
+    
+    setTimeout(() => {
+      const reportContent = `
+# Keyword Feasibility Report
+
+## Trend: ${trend.trending_keyword}
+- Traffic: ${trend.approx_traffic}+
+- Feasibility: ${trend.feasibility || "Not rated yet"}
+- Date: ${trend.pubDate ? new Date(trend.pubDate).toLocaleDateString() : "Unknown"}
+
+## Summary
+${trend.abstract || trend.summary || "No summary available."}
+
+## Related News Sources
+${newsItems.map((item, i) => `${i+1}. ${item.title} (${item.source || "Unknown source"})`).join("\n")}
+
+## Feasibility Analysis
+This keyword has ${trend.feasibility || "unrated"} feasibility for product integration.
+${trend.feasibility === "high" ? "Recommended for immediate content creation and product targeting." : 
+  trend.feasibility === "medium" ? "Consider for secondary content and product strategies." :
+  trend.feasibility === "low" ? "Monitor but low priority for product integration." :
+  "Rate this keyword's feasibility to receive recommendations."}
+
+Report generated: ${new Date().toLocaleString()}
+      `;
+      
+      // Create blob and download
+      const blob = new Blob([reportContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${trend.trending_keyword.replace(/\s+/g, '_')}_report.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setGeneratingReport(false);
+      
+      // Add message to chat
+      setMessage("");
+      toast({
+        title: "Report Generated",
+        description: "Keyword report has been downloaded successfully."
+      });
+    }, 800);
+  };
+  
+  const handleSetFeasibility = (value: "high" | "medium" | "low") => {
+    if (onUpdateTrend && trend) {
+      const updatedTrend = {
+        ...trend,
+        feasibility: value
+      };
+      onUpdateTrend(updatedTrend);
+      
+      toast({
+        title: "Feasibility Updated",
+        description: `Keyword feasibility set to ${value}`,
+      });
+    }
+  };
+  
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    
+    toast({
+      title: "Message Sent",
+      description: "Your message has been sent."
+    });
+    setMessage("");
+  };
 
   return (
     <div className="flex-1 p-4 bg-[#efeae2] overflow-y-auto">
@@ -93,8 +183,53 @@ const TrendDetail = ({ trend, isLoading }: TrendDetailProps) => {
               <Badge variant="outline" className="bg-[#E1F5FE] text-[#0288D1] border-[#0288D1]">
                 {trend.approx_traffic}+ traffic
               </Badge>
+              {trend.feasibility && (
+                <Badge 
+                  variant="outline" 
+                  className={`ml-2 ${
+                    trend.feasibility === "high" ? "bg-green-100 text-green-800 border-green-300" :
+                    trend.feasibility === "medium" ? "bg-yellow-100 text-yellow-800 border-yellow-300" :
+                    "bg-red-100 text-red-800 border-red-300"
+                  }`}
+                >
+                  {trend.feasibility} feasibility
+                </Badge>
+              )}
             </div>
           </div>
+          <div className="space-x-2">
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="bg-white"
+              onClick={generateKeywordReport}
+              disabled={generatingReport}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {generatingReport ? "Generating..." : "Report"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <Card className="p-4 bg-white rounded-lg shadow-sm">
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-700">Set feasibility:</span>
+              <Select
+                onValueChange={(value: "high" | "medium" | "low") => handleSetFeasibility(value)}
+                defaultValue={trend.feasibility}
+              >
+                <SelectTrigger className="w-32 h-8 text-sm">
+                  <SelectValue placeholder="Rate" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </Card>
         </div>
 
         <Tabs 
@@ -169,26 +304,38 @@ const TrendDetail = ({ trend, isLoading }: TrendDetailProps) => {
           </TabsContent>
         </Tabs>
 
-        <div className="p-3 bg-white rounded-lg shadow-sm mb-6">
+        <form onSubmit={handleSendMessage} className="p-3 bg-white rounded-lg shadow-sm mb-6">
           <div className="flex items-center">
             <input
               type="text"
               placeholder="Type a message to analyze this trend..."
               className="flex-1 bg-transparent focus:outline-none"
-              disabled
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
-            <button className="p-2 rounded-full text-[#128C7E] disabled:text-gray-400" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <button 
+              type="button"
+              className="p-2 rounded-full text-[#128C7E]"
+              onClick={generateKeywordReport}
+              disabled={generatingReport}
+            >
+              <Download className="h-5 w-5" />
             </button>
-            <button className="p-2 rounded-full bg-[#128C7E] text-white ml-2" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-              </svg>
+            <button 
+              type="button"
+              className="p-2 rounded-full text-[#128C7E]"
+            >
+              <Save className="h-5 w-5" />
+            </button>
+            <button 
+              type="submit" 
+              className="p-2 rounded-full bg-[#128C7E] text-white ml-2"
+              disabled={!message.trim()}
+            >
+              <Send className="h-5 w-5" />
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

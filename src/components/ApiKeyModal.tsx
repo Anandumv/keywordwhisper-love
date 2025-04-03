@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, HelpCircle, ExternalLink } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ApiKeyModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
         <DialogHeader>
           <DialogTitle>API Settings</DialogTitle>
           <DialogDescription>
-            Configure your API keys to fetch trend data from external services.
+            Configure your API keys to fetch trend data and enable webhook integration for automated workflows.
           </DialogDescription>
         </DialogHeader>
         
@@ -51,7 +52,21 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
         
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="jina-api-key">Jina AI API Key (Required)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="jina-api-key">Jina AI API Key (Required)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <HelpCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Jina AI is used to extract and analyze content from trending articles.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Input
               id="jina-api-key"
               type="password"
@@ -62,8 +77,8 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
                 setError("");
               }}
             />
-            <p className="text-xs text-gray-500">
-              Used to extract content from trending articles. Get your key at{" "}
+            <p className="text-xs text-gray-500 flex items-center">
+              <ExternalLink className="h-3 w-3 mr-1" />
               <a 
                 href="https://jina.ai/" 
                 target="_blank" 
@@ -76,7 +91,21 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="webhook-url">Webhook URL (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="webhook-url">Webhook URL (Optional)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <HelpCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Connect to Zapier, Make.com or n8n to automate workflows when trends are updated.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Input
               id="webhook-url"
               type="text"
@@ -85,9 +114,18 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
               onChange={(e) => setWebhookUrl(e.target.value)}
             />
             <p className="text-xs text-gray-500">
-              Optional: Used to trigger external workflows when new trends are detected.
+              Used to trigger external workflows when trend data is updated. Compatible with Zapier, Make.com, and n8n.
             </p>
           </div>
+          
+          <Alert className="bg-blue-50 border-blue-200">
+            <div className="flex items-start">
+              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 mr-2" />
+              <AlertDescription className="text-blue-800 text-xs">
+                TrendWhisper stores all data locally in your browser. No server is needed, but you'll need to use the same browser to access your saved trends.
+              </AlertDescription>
+            </div>
+          </Alert>
         </div>
         
         <DialogFooter className="sm:justify-end">

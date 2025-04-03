@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { TrendData } from "@/types/trend";
 import { fetchTrends } from "@/lib/api";
 
+const STORAGE_KEY = "trendWhisperData";
+
 const Index = () => {
   const [selectedTrend, setSelectedTrend] = useState<TrendData | null>(null);
   const [trends, setTrends] = useState<TrendData[]>([]);
@@ -19,6 +21,22 @@ const Index = () => {
   const [showApiModal, setShowApiModal] = useState(!jinaApiKey);
   const [view, setView] = useState<"chat" | "dashboard">("chat");
   const { toast } = useToast();
+
+  // Load saved trends from localStorage on app start
+  useEffect(() => {
+    const savedTrends = localStorage.getItem(STORAGE_KEY);
+    if (savedTrends) {
+      try {
+        const parsedTrends = JSON.parse(savedTrends);
+        setTrends(parsedTrends);
+        if (parsedTrends.length > 0 && !selectedTrend) {
+          setSelectedTrend(parsedTrends[0]);
+        }
+      } catch (error) {
+        console.error("Error parsing saved trends:", error);
+      }
+    }
+  }, []);
 
   const handleSaveApiKey = (key: string) => {
     localStorage.setItem("jinaApiKey", key);
@@ -37,9 +55,21 @@ const Index = () => {
     setIsLoading(true);
     try {
       const data = await fetchTrends();
-      setTrends(data);
-      if (data.length > 0 && !selectedTrend) {
-        setSelectedTrend(data[0]);
+      
+      // Merge with existing trends, preserving feasibility ratings
+      const mergedTrends = [...data].map(newTrend => {
+        const existingTrend = trends.find(t => t.trending_keyword === newTrend.trending_keyword);
+        if (existingTrend && existingTrend.feasibility) {
+          return { ...newTrend, feasibility: existingTrend.feasibility };
+        }
+        return newTrend;
+      });
+      
+      setTrends(mergedTrends);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedTrends));
+      
+      if (mergedTrends.length > 0 && !selectedTrend) {
+        setSelectedTrend(mergedTrends[0]);
       }
     } catch (error) {
       console.error("Error fetching trends:", error);
@@ -69,6 +99,39 @@ const Index = () => {
 
   const toggleView = () => {
     setView(view === "chat" ? "dashboard" : "chat");
+  };
+  
+  const handleUpdateTrend = (updatedTrend: TrendData) => {
+    const updatedTrends = trends.map(trend => 
+      trend.trending_keyword === updatedTrend.trending_keyword ? updatedTrend : trend
+    );
+    
+    setTrends(updatedTrends);
+    setSelectedTrend(updatedTrend);
+    
+    // Save to localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTrends));
+    
+    // Trigger any webhooks if configured
+    const webhookUrl = localStorage.getItem("webhookUrl");
+    if (webhookUrl) {
+      try {
+        fetch(webhookUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            event: "trend_updated",
+            trend: updatedTrend,
+            timestamp: new Date().toISOString()
+          })
+        }).catch(err => console.log("Webhook notification error (non-critical):", err));
+      } catch (error) {
+        console.log("Webhook error (non-critical):", error);
+      }
+    }
   };
 
   return (
@@ -119,7 +182,11 @@ const Index = () => {
               onSelectTrend={setSelectedTrend}
               isLoading={isLoading}
             />
-            <TrendDetail trend={selectedTrend} isLoading={isLoading} />
+            <TrendDetail 
+              trend={selectedTrend} 
+              isLoading={isLoading} 
+              onUpdateTrend={handleUpdateTrend}
+            />
           </>
         ) : (
           <TrendDashboard trends={trends} isLoading={isLoading} />

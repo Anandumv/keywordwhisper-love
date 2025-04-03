@@ -4,6 +4,7 @@ export interface TrendData {
   approx_traffic: number;
   pubDate: string;
   status: string;
+  feasibility?: "high" | "medium" | "low";
   news_item_url1?: string;
   news_item_title1?: string;
   news_item_picture1?: string;
