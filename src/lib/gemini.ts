@@ -23,9 +23,9 @@ export const generateKeywordSuggestions = async (
   }
 
   try {
-    // Updated API endpoint to use the correct version and model
+    // Use the correct API version and model name that's currently available
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${geminiApiKey}`,
       {
         method: "POST",
         headers: {
