@@ -11,12 +11,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface ApiKeyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (apiKey: string) => void;
+  onSave: (apiKey: string, geminiApiKey: string) => void;
   initialValue: string;
+  initialGeminiValue: string;
 }
 
-const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps) => {
+const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue, initialGeminiValue }: ApiKeyModalProps) => {
   const [apiKey, setApiKey] = useState(initialValue);
+  const [geminiApiKey, setGeminiApiKey] = useState(initialGeminiValue);
   const [webhookUrl, setWebhookUrl] = useState(localStorage.getItem("webhookUrl") || "");
   const [error, setError] = useState("");
 
@@ -30,7 +32,7 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
       localStorage.setItem("webhookUrl", webhookUrl);
     }
     
-    onSave(apiKey);
+    onSave(apiKey, geminiApiKey);
   };
 
   return (
@@ -86,6 +88,42 @@ const ApiKeyModal = ({ isOpen, onClose, onSave, initialValue }: ApiKeyModalProps
                 className="text-blue-600 hover:underline"
               >
                 jina.ai
+              </a>
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="gemini-api-key">Gemini API Key (Optional)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <HelpCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Gemini API is used to generate related keywords and content suggestions.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Input
+              id="gemini-api-key"
+              type="password"
+              placeholder="Enter your Gemini API key"
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 flex items-center">
+              <ExternalLink className="h-3 w-3 mr-1" />
+              <a 
+                href="https://ai.google.dev/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                ai.google.dev
               </a>
             </p>
           </div>

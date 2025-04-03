@@ -19,4 +19,5 @@ export interface TrendData {
   news_item_source3?: string;
   abstract?: string;
   summary?: string;
+  relatedKeywords?: string[];
 }

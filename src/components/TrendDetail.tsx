@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { TrendData } from "@/types/trend";
 import { formatDistanceToNow } from "date-fns";
-import { Download, Send, Save } from "lucide-react";
+import { Download, Send, Save, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { generateKeywordSuggestions } from "@/lib/gemini";
 import { 
   Select,
   SelectContent,
@@ -16,18 +18,22 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TrendDetailProps {
   trend: TrendData | null;
   isLoading: boolean;
   onUpdateTrend?: (updatedTrend: TrendData) => void;
+  hasGeminiKey?: boolean;
 }
 
-const TrendDetail = ({ trend, isLoading, onUpdateTrend }: TrendDetailProps) => {
+const TrendDetail = ({ trend, isLoading, onUpdateTrend, hasGeminiKey = false }: TrendDetailProps) => {
   const [activeTab, setActiveTab] = useState("summary");
   const [message, setMessage] = useState("");
+  const [productQuery, setProductQuery] = useState("");
   const [generatingReport, setGeneratingReport] = useState(false);
-  const { toast } = useToast();
+  const [generatingKeywords, setGeneratingKeywords] = useState(false);
+  const { toast: uiToast } = useToast();
 
   if (isLoading && !trend) {
     return (
@@ -112,6 +118,10 @@ ${trend.abstract || trend.summary || "No summary available."}
 ## Related News Sources
 ${newsItems.map((item, i) => `${i+1}. ${item.title} (${item.source || "Unknown source"})`).join("\n")}
 
+${trend.relatedKeywords && trend.relatedKeywords.length > 0 ? 
+`## Related Keywords
+${trend.relatedKeywords.map((keyword, i) => `${i+1}. ${keyword}`).join("\n")}` : ""}
+
 ## Feasibility Analysis
 This keyword has ${trend.feasibility || "unrated"} feasibility for product integration.
 ${trend.feasibility === "high" ? "Recommended for immediate content creation and product targeting." : 
@@ -137,7 +147,7 @@ Report generated: ${new Date().toLocaleString()}
       
       // Add message to chat
       setMessage("");
-      toast({
+      uiToast({
         title: "Report Generated",
         description: "Keyword report has been downloaded successfully."
       });
@@ -152,22 +162,59 @@ Report generated: ${new Date().toLocaleString()}
       };
       onUpdateTrend(updatedTrend);
       
-      toast({
+      uiToast({
         title: "Feasibility Updated",
         description: `Keyword feasibility set to ${value}`,
       });
     }
   };
   
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
     
-    toast({
+    uiToast({
       title: "Message Sent",
       description: "Your message has been sent."
     });
     setMessage("");
+  };
+
+  const handleGenerateKeywords = async () => {
+    if (!hasGeminiKey) {
+      toast.error("Gemini API key is required. Please set it in API Settings.");
+      return;
+    }
+
+    if (!productQuery.trim()) {
+      toast.error("Please enter a product or industry to generate relevant keywords.");
+      return;
+    }
+
+    setGeneratingKeywords(true);
+    
+    try {
+      const keywords = await generateKeywordSuggestions(trend.trending_keyword, productQuery);
+      
+      if (keywords.length > 0 && onUpdateTrend) {
+        const updatedTrend = {
+          ...trend,
+          relatedKeywords: keywords
+        };
+        
+        onUpdateTrend(updatedTrend);
+        
+        toast.success("Generated " + keywords.length + " keyword suggestions");
+        setProductQuery("");
+      } else {
+        toast.error("Failed to generate keyword suggestions");
+      }
+    } catch (error) {
+      console.error("Error generating keywords:", error);
+      toast.error("Failed to generate keywords: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setGeneratingKeywords(false);
+    }
   };
 
   return (
@@ -232,15 +279,42 @@ Report generated: ${new Date().toLocaleString()}
           </Card>
         </div>
 
+        {hasGeminiKey && (
+          <div className="mb-4">
+            <Card className="p-4 bg-white rounded-lg shadow-sm">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Generate Related Keywords</h3>
+              <div className="flex items-center space-x-2">
+                <Textarea
+                  placeholder="Enter your product or industry (e.g., 'fitness equipment', 'online courses')"
+                  className="text-sm resize-none h-10 min-h-[40px] py-2"
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                />
+                <Button
+                  onClick={handleGenerateKeywords}
+                  disabled={generatingKeywords || !productQuery.trim()}
+                  className="shrink-0 bg-[#128C7E] hover:bg-[#0e7166]"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {generatingKeywords ? "Generating..." : "Generate"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         <Tabs 
           defaultValue="summary" 
           value={activeTab} 
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="sources">News Sources</TabsTrigger>
+            {trend.relatedKeywords && trend.relatedKeywords.length > 0 && (
+              <TabsTrigger value="keywords">Keywords</TabsTrigger>
+            )}
             <TabsTrigger value="data">Raw Data</TabsTrigger>
           </TabsList>
           
@@ -294,6 +368,21 @@ Report generated: ${new Date().toLocaleString()}
               </div>
             )}
           </TabsContent>
+          
+          {trend.relatedKeywords && trend.relatedKeywords.length > 0 && (
+            <TabsContent value="keywords" className="space-y-4">
+              <Card className="bg-white p-5 rounded-lg shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-3">Related Keywords</h3>
+                <div className="flex flex-wrap gap-2">
+                  {trend.relatedKeywords.map((keyword, index) => (
+                    <Badge key={index} variant="outline" className="bg-[#e8f5e9] text-[#2e7d32] border-[#a5d6a7] px-3 py-1">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </div>
+              </Card>
+            </TabsContent>
+          )}
           
           <TabsContent value="data">
             <Card className="bg-white p-4 rounded-lg shadow-sm">

@@ -18,6 +18,9 @@ const Index = () => {
   const [jinaApiKey, setJinaApiKey] = useState<string | null>(
     localStorage.getItem("jinaApiKey")
   );
+  const [geminiApiKey, setGeminiApiKey] = useState<string | null>(
+    localStorage.getItem("geminiApiKey")
+  );
   const [showApiModal, setShowApiModal] = useState(!jinaApiKey);
   const [view, setView] = useState<"chat" | "dashboard">("chat");
   const { toast } = useToast();
@@ -38,13 +41,19 @@ const Index = () => {
     }
   }, []);
 
-  const handleSaveApiKey = (key: string) => {
-    localStorage.setItem("jinaApiKey", key);
-    setJinaApiKey(key);
+  const handleSaveApiKey = (jina: string, gemini: string) => {
+    localStorage.setItem("jinaApiKey", jina);
+    setJinaApiKey(jina);
+    
+    if (gemini) {
+      localStorage.setItem("geminiApiKey", gemini);
+      setGeminiApiKey(gemini);
+    }
+    
     setShowApiModal(false);
     toast({
-      title: "API Key Saved",
-      description: "Your Jina API key has been saved successfully.",
+      title: "API Keys Saved",
+      description: `Your API keys have been saved successfully${gemini ? ' including Gemini API' : ''}.`,
     });
     loadTrendData();
   };
@@ -59,8 +68,12 @@ const Index = () => {
       // Merge with existing trends, preserving feasibility ratings
       const mergedTrends = [...data].map(newTrend => {
         const existingTrend = trends.find(t => t.trending_keyword === newTrend.trending_keyword);
-        if (existingTrend && existingTrend.feasibility) {
-          return { ...newTrend, feasibility: existingTrend.feasibility };
+        if (existingTrend) {
+          return { 
+            ...newTrend, 
+            feasibility: existingTrend.feasibility,
+            relatedKeywords: existingTrend.relatedKeywords
+          };
         }
         return newTrend;
       });
@@ -186,6 +199,7 @@ const Index = () => {
               trend={selectedTrend} 
               isLoading={isLoading} 
               onUpdateTrend={handleUpdateTrend}
+              hasGeminiKey={!!geminiApiKey}
             />
           </>
         ) : (
@@ -199,6 +213,7 @@ const Index = () => {
         onClose={() => jinaApiKey && setShowApiModal(false)} 
         onSave={handleSaveApiKey} 
         initialValue={jinaApiKey || ""}
+        initialGeminiValue={geminiApiKey || ""}
       />
     </div>
   );
