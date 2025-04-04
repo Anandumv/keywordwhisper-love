@@ -36,14 +36,20 @@ export const generateKeywordSuggestions = async (
             {
               parts: [
                 {
-                  text: `Generate 10 relevant SEO keywords related to "${keyword}" that would be feasible for a product in the category of "${product}". Return the list as a JSON array of strings without any additional text or explanation.`,
+                  text: `Research and generate 10 SEO-optimized keywords for the product: "${product}" with focus keyword "${keyword}".
+                  
+                  Analyze similar products on e-commerce platforms like Amazon, Flipkart, and Meesho to identify high-performing keywords.
+                  
+                  For each keyword, consider search volume, competition, and relevance to the product.
+                  
+                  Return ONLY a JSON array of strings containing the keywords without any explanation or additional text. For example: ["keyword1", "keyword2", ...]`,
                 },
               ],
             },
           ],
           generationConfig: {
-            temperature: 0.4,
-            topK: 32,
+            temperature: 0.2,
+            topK: 40,
             topP: 0.95,
             maxOutputTokens: 1024,
           },
@@ -53,6 +59,7 @@ export const generateKeywordSuggestions = async (
 
     if (!response.ok) {
       const error = await response.json();
+      console.error("Gemini API error response:", error);
       throw new Error(error.error?.message || "Failed to fetch keyword suggestions");
     }
 
@@ -63,6 +70,7 @@ export const generateKeywordSuggestions = async (
     }
     
     const suggestionsText = data.candidates[0].content.parts[0].text;
+    console.log("Raw Gemini response:", suggestionsText);
     
     // Try to parse the response as JSON array
     try {
@@ -78,8 +86,8 @@ export const generateKeywordSuggestions = async (
       
       // Fallback: Try to extract a list from the text response
       const lines = suggestionsText.split('\n')
-        .map(line => line.replace(/^\d+\.\s*|"/g, '').trim())
-        .filter(line => line.length > 0);
+        .map(line => line.replace(/^\d+\.\s*|"|^\s*-\s*/g, '').trim())
+        .filter(line => line.length > 0 && !line.includes('```'));
       
       if (lines.length > 0) {
         return lines.slice(0, 10);

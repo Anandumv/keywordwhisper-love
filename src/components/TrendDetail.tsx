@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,7 +186,7 @@ Report generated: ${new Date().toLocaleString()}
     }
 
     if (!productQuery.trim()) {
-      toast.error("Please enter a product or industry to generate relevant keywords.");
+      toast.error("Please enter a product to analyze and generate keywords for.");
       return;
     }
 
@@ -204,8 +203,9 @@ Report generated: ${new Date().toLocaleString()}
         
         onUpdateTrend(updatedTrend);
         
-        toast.success("Generated " + keywords.length + " keyword suggestions");
+        toast.success("Generated " + keywords.length + " e-commerce SEO keywords");
         setProductQuery("");
+        setActiveTab("keywords");
       } else {
         toast.error("Failed to generate keyword suggestions");
       }
@@ -282,10 +282,10 @@ Report generated: ${new Date().toLocaleString()}
         {hasGeminiKey && (
           <div className="mb-4">
             <Card className="p-4 bg-white rounded-lg shadow-sm">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Generate Related Keywords</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Generate E-commerce SEO Keywords</h3>
               <div className="flex items-center space-x-2">
                 <Textarea
-                  placeholder="Enter your product or industry (e.g., 'fitness equipment', 'online courses')"
+                  placeholder="Enter a specific product (e.g., 'iPhone 13 Pro', 'Nike Air Max 270')"
                   className="text-sm resize-none h-10 min-h-[40px] py-2"
                   value={productQuery}
                   onChange={(e) => setProductQuery(e.target.value)}
@@ -296,7 +296,7 @@ Report generated: ${new Date().toLocaleString()}
                   className="shrink-0 bg-[#128C7E] hover:bg-[#0e7166]"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {generatingKeywords ? "Generating..." : "Generate"}
+                  {generatingKeywords ? "Analyzing..." : "Generate"}
                 </Button>
               </div>
             </Card>
