@@ -1,189 +1,690 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, Search, Copy, Check, RefreshCw, Sparkles, Zap, Star, Target, Lightbulb, Wand2, Rocket, Crown, Gem, Send, MessageSquare, Share2, Download, Printer, Mail, Phone } from 'lucide-react';
+import { generateSEOContent } from '@/api/generate';
+import { sendSEOContentViaWhatsApp } from '@/api/whatsapp';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { generateKeywordSuggestions } from "@/lib/gemini";
-import { toast } from "sonner";
-import { Sparkles, Download, Copy } from "lucide-react";
+export default function KeywordGenerator() {
+  const [productDescription, setProductDescription] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [seoContent, setSeoContent] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppSuccess, setWhatsAppSuccess] = useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = useState('generate');
 
-interface KeywordGeneratorProps {
-  trendKeyword?: string;
-  onKeywordsGenerated?: (keywords: string[]) => void;
-  hasGeminiKey: boolean;
-}
-
-const KeywordGenerator = ({ 
-  trendKeyword = "", 
-  onKeywordsGenerated, 
-  hasGeminiKey 
-}: KeywordGeneratorProps) => {
-  const [productQuery, setProductQuery] = useState("");
-  const [generatingKeywords, setGeneratingKeywords] = useState(false);
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [options, setOptions] = useState({
-    includeCategories: true,
-    includeAgeGroups: true,
-    includeBenefits: true
-  });
-
-  const handleOptionChange = (option: keyof typeof options) => {
-    setOptions(prev => ({
-      ...prev,
-      [option]: !prev[option]
-    }));
-  };
-
-  const handleGenerateKeywords = async () => {
-    if (!hasGeminiKey) {
-      toast.error("Gemini API key is required. Please set it in API Settings.");
-      return;
-    }
-
-    if (!productQuery.trim()) {
-      toast.error("Please enter a product to analyze and generate keywords for.");
-      return;
-    }
-
-    setGeneratingKeywords(true);
+  const handleGenerate = async () => {
+    if (!productDescription.trim()) return;
+    
+    setIsLoading(true);
+    setError(null);
+    setRetryAfter(null);
+    setSeoContent(null);
     
     try {
-      const generatedKeywords = await generateKeywordSuggestions(
-        trendKeyword || productQuery, 
-        productQuery
-      );
-      
-      if (generatedKeywords.length > 0) {
-        setKeywords(generatedKeywords);
-        
-        if (onKeywordsGenerated) {
-          onKeywordsGenerated(generatedKeywords);
-        }
-        
-        toast.success(`Generated ${generatedKeywords.length} e-commerce SEO keywords`);
-      } else {
-        toast.error("Failed to generate keyword suggestions");
-      }
+      console.log('Sending request to generate SEO content...');
+      const data = await generateSEOContent(productDescription);
+      console.log('Received SEO content:', data);
+      setSeoContent(data);
+      setActiveTab('results');
     } catch (error) {
-      console.error("Error generating keywords:", error);
-      toast.error("Failed to generate keywords: " + (error instanceof Error ? error.message : "Unknown error"));
+      console.error('Error in KeywordGenerator:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('quota') || error.message.includes('rate limit')) {
+          setError('API quota exceeded. Please wait a minute before trying again.');
+          setRetryAfter(60); // 60 seconds
+          
+          // Start countdown
+          const countdownInterval = setInterval(() => {
+            setRetryAfter(prev => {
+              if (prev === null || prev <= 1) {
+                clearInterval(countdownInterval);
+                return null;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError('Failed to generate SEO content. Please try again.');
+      }
     } finally {
-      setGeneratingKeywords(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCopyKeywords = () => {
-    if (keywords.length > 0) {
-      navigator.clipboard.writeText(keywords.join('\n'));
-      toast.success("Keywords copied to clipboard");
+  const handleCopy = (text: string, section: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(section);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleReset = () => {
+    setProductDescription('');
+    setSeoContent(null);
+    setError(null);
+    setRetryAfter(null);
+    setActiveTab('generate');
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!phoneNumber.trim() || !seoContent) return;
+    
+    setIsSendingWhatsApp(true);
+    setWhatsAppSuccess(null);
+    
+    try {
+      const success = await sendSEOContentViaWhatsApp(phoneNumber, seoContent);
+      setWhatsAppSuccess(success);
+    } catch (error) {
+      console.error('Error sending WhatsApp message:', error);
+      setWhatsAppSuccess(false);
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
-  const handleDownloadKeywords = () => {
-    if (keywords.length > 0) {
-      const content = keywords.join('\n');
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `seo_keywords_${productQuery.replace(/\s+/g, '_')}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("Keywords downloaded");
-    }
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownload = () => {
+    if (!seoContent) return;
+    
+    const content = `
+SEO Content Generated
+
+Title: ${seoContent.seoTitle}
+
+Meta Description: ${seoContent.metaDescription}
+
+Keywords: ${seoContent.keywords.join(', ')}
+
+Product Description: ${seoContent.productDescription}
+
+Long-tail Keywords: ${seoContent.longTailKeywords.join(', ')}
+
+Product Features:
+${seoContent.productFeatures.map((feature: string) => `• ${feature}`).join('\n')}
+
+Target Audience:
+${seoContent.targetAudience.map((audience: string) => `• ${audience}`).join('\n')}
+
+SEO Recommendations:
+${seoContent.seoRecommendations.map((rec: string) => `• ${rec}`).join('\n')}
+
+Competitor Analysis:
+${seoContent.competitorAnalysis}
+
+Content Ideas:
+${seoContent.contentIdeas.map((idea: string) => `• ${idea}`).join('\n')}
+
+Generated by Trend Whisper SEO Generator
+    `.trim();
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'seo-content.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <Card className="p-4 bg-white rounded-lg shadow-sm">
-      <h3 className="text-lg font-medium text-gray-800 mb-4">E-commerce SEO Keyword Generator</h3>
-      
-      <div className="mb-4">
-        <Textarea
-          placeholder="Enter a specific product (e.g., 'iPhone 13 Pro', 'Nike Air Max 270', 'Lego Star Wars set')"
-          className="resize-none mb-3"
-          value={productQuery}
-          onChange={(e) => setProductQuery(e.target.value)}
-        />
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="categories" 
-              checked={options.includeCategories}
-              onCheckedChange={() => handleOptionChange('includeCategories')}
-            />
-            <Label htmlFor="categories">Categories</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="ageGroups" 
-              checked={options.includeAgeGroups}
-              onCheckedChange={() => handleOptionChange('includeAgeGroups')}
-            />
-            <Label htmlFor="ageGroups">Age Groups</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="benefits" 
-              checked={options.includeBenefits}
-              onCheckedChange={() => handleOptionChange('includeBenefits')}
-            />
-            <Label htmlFor="benefits">Benefits/Features</Label>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={handleGenerateKeywords}
-            disabled={generatingKeywords || !productQuery.trim()}
-            className="shrink-0 bg-[#128C7E] hover:bg-[#0e7166]"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            {generatingKeywords ? "Analyzing..." : "Generate Keywords"}
-          </Button>
-          
-          {keywords.length > 0 && (
-            <>
-              <Button
-                variant="outline" 
-                size="icon"
-                onClick={handleCopyKeywords}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline" 
-                size="icon"
-                onClick={handleDownloadKeywords}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
+    <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-purple-900 to-black p-4 md:p-8 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
-
-      {keywords.length > 0 && (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Generated Keywords</h4>
-          <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border rounded-md">
-            {keywords.map((keyword, index) => (
-              <Badge key={index} variant="outline" className="bg-[#e8f5e9] text-[#2e7d32] border-[#a5d6a7] px-3 py-1">
-                {keyword}
-              </Badge>
-            ))}
-          </div>
+      
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBoMXYxaC0xeiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvZz48L3N2Zz4=')] opacity-10"></div>
+      
+      {/* Glow effects */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/30 rounded-full filter blur-3xl opacity-20"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/30 rounded-full filter blur-3xl opacity-20"></div>
+      
+      <div className="relative space-y-6 max-w-6xl mx-auto">
+        {/* Premium header */}
+        <div className="text-center mb-12">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-3 bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-pink-500/50 px-6 py-3 rounded-full backdrop-blur-md border border-white/30 shadow-2xl"
+          >
+            <Sparkles className="h-6 w-6 text-yellow-300 animate-pulse" />
+            <span className="text-white font-bold text-2xl tracking-wide drop-shadow-lg">Trend Whisper SEO Generator</span>
+            <Sparkles className="h-6 w-6 text-yellow-300 animate-pulse" />
+          </motion.div>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="mt-4 text-white text-xl max-w-2xl mx-auto font-medium drop-shadow-md"
+          >
+            Create professional SEO content with AI-powered insights
+          </motion.p>
         </div>
-      )}
-    </Card>
-  );
-};
+        
+        {/* Main card with glass effect */}
+        <Card className="border border-white/30 shadow-2xl bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20"></div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          
+          <CardHeader className="bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-pink-500/50 pb-4 rounded-t-lg border-b border-white/30">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-indigo-500/50 to-purple-500/50 rounded-lg shadow-lg">
+                <Wand2 className="h-6 w-6 text-yellow-300 animate-pulse" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-white drop-shadow-md">
+                SEO Content Generator
+              </CardTitle>
+            </div>
+            <CardDescription className="text-white text-lg mt-2 font-medium">
+              Create comprehensive SEO content for your product with just a description
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="pt-8">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-2 mb-8 bg-indigo-950/80 border border-white/30">
+                <TabsTrigger value="generate" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500/50 data-[state=active]:to-purple-500/50 data-[state=active]:text-white text-white">
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate Content
+                </TabsTrigger>
+                <TabsTrigger value="results" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500/50 data-[state=active]:to-purple-500/50 data-[state=active]:text-white text-white" disabled={!seoContent}>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Results
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="generate" className="space-y-8 mt-0">
+                {/* Input section with enhanced styling */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/80 to-purple-900/80 rounded-lg blur-md"></div>
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white h-5 w-5" />
+                      <Input
+                        placeholder="Enter your product description..."
+                        value={productDescription}
+                        onChange={(e) => setProductDescription(e.target.value)}
+                        className="pl-12 pr-4 py-6 text-lg border-white/50 bg-indigo-950/80 text-white placeholder:text-white/70 focus:border-indigo-400/70 focus:ring-indigo-400/50 transition-colors rounded-lg shadow-inner"
+                        disabled={isLoading || retryAfter !== null}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleGenerate} 
+                    disabled={isLoading || !productDescription.trim() || retryAfter !== null}
+                    className="px-8 py-6 text-lg font-medium bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-indigo-500/50 text-white rounded-lg relative overflow-hidden group"
+                    size="lg"
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
+                    {isLoading ? 'Generating...' : 'Generate'}
+                  </Button>
+                </div>
 
-export default KeywordGenerator;
+                {/* Error message with enhanced styling */}
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-white text-base p-5 bg-red-900/80 rounded-lg border border-red-500/50 backdrop-blur-sm shadow-lg"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="p-1 bg-red-500/50 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-300" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium">{error}</p>
+                        {retryAfter !== null && (
+                          <div className="mt-2 text-sm font-medium text-white">
+                            You can try again in {retryAfter} seconds.
+                          </div>
+                        )}
+                        <div className="mt-2 text-sm text-white">
+                          If this issue persists, please check your Gemini API key in the .env file.
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Loading state with enhanced styling */}
+                {isLoading && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center p-10 bg-gradient-to-br from-indigo-900/80 to-purple-900/80 rounded-lg backdrop-blur-sm border border-white/30 shadow-xl"
+                  >
+                    <div className="relative w-20 h-20 mx-auto mb-6">
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/50 to-purple-500/50 rounded-full blur-md"></div>
+                      <Loader2 className="h-20 w-20 animate-spin text-indigo-300 relative z-10" />
+                    </div>
+                    <p className="text-xl text-white font-medium">Generating comprehensive SEO content...</p>
+                    <p className="text-base text-white mt-2">This may take a moment</p>
+                  </motion.div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="results" className="space-y-8 mt-0">
+                <AnimatePresence>
+                  {seoContent && !isLoading && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-8"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gradient-to-br from-indigo-500/50 to-purple-500/50 rounded-lg shadow-lg">
+                            <Crown className="h-5 w-5 text-yellow-300" />
+                          </div>
+                          <h2 className="text-2xl font-bold text-white drop-shadow-md">
+                            Generated SEO Content
+                          </h2>
+                        </div>
+                        <div className="flex gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={handleReset}
+                                  className="text-sm border-white/50 hover:border-white/70 hover:bg-indigo-900/80 transition-colors text-white rounded-lg"
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Generate New
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Start over with a new product description</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={handleDownload}
+                                  className="text-sm border-white/50 hover:border-white/70 hover:bg-indigo-900/80 transition-colors text-white rounded-lg"
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Download
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Download as text file</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={handlePrint}
+                                  className="text-sm border-white/50 hover:border-white/70 hover:bg-indigo-900/80 transition-colors text-white rounded-lg"
+                                >
+                                  <Printer className="h-3 w-3 mr-1" />
+                                  Print
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Print the content</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-sm border-white/50 hover:border-white/70 hover:bg-indigo-900/80 transition-colors text-white rounded-lg"
+                              >
+                                <Send className="h-3 w-3 mr-1" />
+                                Share
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-gradient-to-br from-indigo-900/90 to-purple-900/90 border border-white/30 text-white backdrop-blur-xl">
+                              <DialogHeader>
+                                <DialogTitle className="text-xl font-bold text-white drop-shadow-md">
+                                  Share SEO Content
+                                </DialogTitle>
+                                <DialogDescription className="text-white text-base">
+                                  Send your generated SEO content via WhatsApp
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="py-4">
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="phone" className="text-white text-base">Phone Number</Label>
+                                    <div className="flex items-center gap-2">
+                                      <div className="p-2 bg-indigo-900/80 rounded-lg">
+                                        <Phone className="h-4 w-4 text-white" />
+                                      </div>
+                                      <Input
+                                        id="phone"
+                                        placeholder="Enter phone number (e.g., 1234567890)"
+                                        value={phoneNumber}
+                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                        className="border-white/50 bg-indigo-950/80 text-white placeholder:text-white/70 text-base"
+                                      />
+                                    </div>
+                                    <p className="text-sm text-white">
+                                      Enter the phone number without country code (will be added automatically)
+                                    </p>
+                                  </div>
+                                  
+                                  {whatsAppSuccess !== null && (
+                                    <div className={`p-3 rounded-lg ${whatsAppSuccess ? 'bg-green-900/80 border border-green-500/50' : 'bg-red-900/80 border border-red-500/50'}`}>
+                                      <p className="text-base font-medium text-white">
+                                        {whatsAppSuccess 
+                                          ? 'Message sent successfully!' 
+                                          : 'Failed to send message. Please check your WhatsApp credentials.'}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button 
+                                  onClick={handleSendWhatsApp}
+                                  disabled={isSendingWhatsApp || !phoneNumber.trim()}
+                                  className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-base"
+                                >
+                                  {isSendingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MessageSquare className="h-4 w-4 mr-2" />}
+                                  {isSendingWhatsApp ? 'Sending...' : 'Send via WhatsApp'}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </div>
+
+                      <ScrollArea className="h-[calc(100vh-400px)] pr-4">
+                        <div className="space-y-8">
+                          {/* Title and Meta Description cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-indigo-950/90 to-indigo-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-indigo-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-indigo-500/50 rounded-md">
+                                    <Gem className="h-4 w-4 text-indigo-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">Title</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <div className="flex justify-between items-start">
+                                  <p className="text-base text-white font-medium">{seoContent.seoTitle}</p>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 hover:bg-indigo-900/80 transition-colors text-white rounded-full"
+                                    onClick={() => handleCopy(seoContent.seoTitle, 'title')}
+                                  >
+                                    {copied === 'title' ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-950/90 to-purple-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-purple-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-purple-500/50 rounded-md">
+                                    <Gem className="h-4 w-4 text-purple-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">Meta Description</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <div className="flex justify-between items-start">
+                                  <p className="text-base text-white font-medium">{seoContent.metaDescription}</p>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 hover:bg-purple-900/80 transition-colors text-white rounded-full"
+                                    onClick={() => handleCopy(seoContent.metaDescription, 'meta')}
+                                  >
+                                    {copied === 'meta' ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* Keywords card with enhanced styling */}
+                          <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-indigo-950/90 to-purple-900/80 backdrop-blur-sm overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <CardHeader className="pb-2 bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-transparent">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-gradient-to-br from-indigo-500/50 to-purple-500/50 rounded-md">
+                                  <Target className="h-4 w-4 text-indigo-300" />
+                                </div>
+                                <CardTitle className="text-lg text-white font-bold">Keywords</CardTitle>
+                              </div>
+                              <CardDescription className="text-white text-base">20-30 highly relevant SEO keywords</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                              <div className="flex flex-wrap gap-2">
+                                {seoContent.keywords.map((keyword: string, index: number) => (
+                                  <motion.span 
+                                    key={index} 
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: index * 0.03 }}
+                                    className="bg-gradient-to-r from-indigo-500/80 to-purple-500/80 text-white px-3 py-1.5 rounded-full text-base font-medium hover:from-indigo-500/90 hover:to-purple-500/90 transition-all duration-300 shadow-md hover:shadow-lg"
+                                  >
+                                    {keyword}
+                                  </motion.span>
+                                ))}
+                              </div>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-4 text-sm border-white/50 hover:border-white/70 hover:bg-indigo-900/80 transition-colors text-white rounded-lg"
+                                onClick={() => handleCopy(seoContent.keywords.join(', '), 'keywords')}
+                              >
+                                {copied === 'keywords' ? <Check className="h-3 w-3 mr-1 text-green-400" /> : <Copy className="h-3 w-3 mr-1" />}
+                                Copy All Keywords
+                              </Button>
+                            </CardContent>
+                          </Card>
+
+                          {/* Product Description card with enhanced styling */}
+                          <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-yellow-950/90 to-yellow-900/80 backdrop-blur-sm overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <CardHeader className="pb-2 bg-gradient-to-r from-yellow-500/50 to-transparent">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-yellow-500/50 rounded-md">
+                                  <Star className="h-4 w-4 text-yellow-300" />
+                                </div>
+                                <CardTitle className="text-lg text-white font-bold">Product Description</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                              <div className="flex justify-between items-start">
+                                <p className="text-base whitespace-pre-line text-white font-medium">{seoContent.productDescription}</p>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 hover:bg-yellow-900/80 transition-colors text-white rounded-full"
+                                  onClick={() => handleCopy(seoContent.productDescription, 'description')}
+                                >
+                                  {copied === 'description' ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* Long-tail Keywords and Product Features cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-purple-950/90 to-pink-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-purple-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-purple-500/50 rounded-md">
+                                    <Target className="h-4 w-4 text-purple-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">Long-tail Keywords</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <div className="flex flex-wrap gap-2">
+                                  {seoContent.longTailKeywords.map((keyword: string, index: number) => (
+                                    <span key={index} className="bg-gradient-to-r from-purple-500/80 to-pink-500/80 text-white px-2 py-1.5 rounded-full text-base font-medium shadow-md hover:shadow-lg transition-all duration-300">
+                                      {keyword}
+                                    </span>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-indigo-950/90 to-blue-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-indigo-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-indigo-500/50 rounded-md">
+                                    <Star className="h-4 w-4 text-indigo-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">Product Features</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <ul className="list-disc list-inside text-base space-y-1.5">
+                                  {seoContent.productFeatures.map((feature: string, index: number) => (
+                                    <li key={index} className="text-white font-medium">{feature}</li>
+                                  ))}
+                                </ul>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* Target Audience and SEO Recommendations cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-pink-950/90 to-red-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-pink-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-pink-500/50 rounded-md">
+                                    <Target className="h-4 w-4 text-pink-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">Target Audience</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <ul className="list-disc list-inside text-base space-y-1.5">
+                                  {seoContent.targetAudience.map((audience: string, index: number) => (
+                                    <li key={index} className="text-white font-medium">{audience}</li>
+                                  ))}
+                                </ul>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-yellow-950/90 to-orange-900/80 backdrop-blur-sm overflow-hidden group">
+                              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <CardHeader className="pb-2 bg-gradient-to-r from-yellow-500/50 to-transparent">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-yellow-500/50 rounded-md">
+                                    <Zap className="h-4 w-4 text-yellow-300" />
+                                  </div>
+                                  <CardTitle className="text-lg text-white font-bold">SEO Recommendations</CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <ul className="list-disc list-inside text-base space-y-1.5">
+                                  {seoContent.seoRecommendations.map((recommendation: string, index: number) => (
+                                    <li key={index} className="text-white font-medium">{recommendation}</li>
+                                  ))}
+                                </ul>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          {/* Competitor Analysis card with enhanced styling */}
+                          <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-indigo-950/90 to-blue-900/80 backdrop-blur-sm overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <CardHeader className="pb-2 bg-gradient-to-r from-indigo-500/50 to-transparent">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-indigo-500/50 rounded-md">
+                                  <Target className="h-4 w-4 text-indigo-300" />
+                                </div>
+                                <CardTitle className="text-lg text-white font-bold">Competitor Analysis</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                              <p className="text-base whitespace-pre-line text-white font-medium">{seoContent.competitorAnalysis}</p>
+                            </CardContent>
+                          </Card>
+
+                          {/* Content Ideas card with enhanced styling */}
+                          <Card className="border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-yellow-950/90 to-amber-900/80 backdrop-blur-sm overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <CardHeader className="pb-2 bg-gradient-to-r from-yellow-500/50 to-transparent">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-yellow-500/50 rounded-md">
+                                  <Lightbulb className="h-4 w-4 text-yellow-300" />
+                                </div>
+                                <CardTitle className="text-lg text-white font-bold">Content Ideas</CardTitle>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                              <ul className="list-disc list-inside text-base space-y-1.5">
+                                {seoContent.contentIdeas.map((idea: string, index: number) => (
+                                  <li key={index} className="text-white font-medium">{idea}</li>
+                                ))}
+                              </ul>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </ScrollArea>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -1,3 +1,4 @@
+import { fetchExternalKeywords } from './scraper';
 
 export interface KeywordGenerationOptions {
   includeCategories?: boolean;
@@ -6,7 +7,7 @@ export interface KeywordGenerationOptions {
   maxKeywords?: number;
 }
 
-export function generateEcommerceKeywords(text: string, options: KeywordGenerationOptions = {}): string[] {
+export async function generateEcommerceKeywords(text: string, options: KeywordGenerationOptions = {}): Promise<string[]> {
   const {
     includeCategories = true,
     includeAgeGroups = true,
@@ -27,60 +28,12 @@ export function generateEcommerceKeywords(text: string, options: KeywordGenerati
     includeBenefits
   });
   
-  // Since we can't use Python scraping in the browser, we'll simulate the external keywords
-  const externalKeywords = simulateExternalKeywords(text);
+  // Fetch additional keywords from external sources
+  const externalKeywords = await fetchExternalKeywords(text);
 
   // Combine internal and external keywords, then optimize and return
   const combinedKeywords = [...keywords, ...externalKeywords];
   return formatKeywords(combinedKeywords, maxKeywords);
-}
-
-// Simulate fetching keywords from external platforms for browser environment
-function simulateExternalKeywords(text: string): string[] {
-  const normalizedText = text.toLowerCase();
-  
-  // Common patterns from e-commerce listings
-  const ecommercePrefixes = [
-    "best", "top", "quality", "premium", "affordable", "discount", "sale", "branded",
-    "latest", "trending", "popular", "new", "authentic", "original", "genuine"
-  ];
-  
-  const ecommerceSuffixes = [
-    "online", "india", "shop", "buy", "price", "offer", "deal", "for men", "for women", 
-    "for kids", "for home", "review", "combo", "set", "pack", "bundle"
-  ];
-  
-  const platformSpecificTerms = {
-    flipkart: ["flipkart", "supermart", "assured"],
-    amazon: ["amazon", "prime", "choice", "basics", "fulfilled"],
-    meesho: ["meesho", "wholesale", "reseller", "supplier"]
-  };
-  
-  const result: string[] = [];
-  
-  // Generate based on prefixes
-  ecommercePrefixes.forEach(prefix => {
-    if (Math.random() > 0.7) { // Only add some combinations to keep list reasonable
-      result.push(`${prefix} ${normalizedText}`);
-    }
-  });
-  
-  // Generate based on suffixes
-  ecommerceSuffixes.forEach(suffix => {
-    if (Math.random() > 0.7) {
-      result.push(`${normalizedText} ${suffix}`);
-    }
-  });
-  
-  // Add some platform-specific variations
-  Object.values(platformSpecificTerms).forEach(terms => {
-    const term = terms[Math.floor(Math.random() * terms.length)];
-    if (Math.random() > 0.6) {
-      result.push(`${normalizedText} ${term}`);
-    }
-  });
-  
-  return result;
 }
 
 // Extract detailed product information from text
@@ -274,7 +227,7 @@ function extractColors(text: string): string[] {
 function formatKeywords(keywords: string[], maxKeywords: number): string[] {
   const uniqueKeywords = Array.from(new Set(keywords));
   const filteredKeywords = uniqueKeywords.filter(keyword => {
-    return keyword.length >= 3 && keyword.length <= 50;
+    return keyword.length >= 5 && keyword.length <= 50;
   });
   const formattedKeywords = filteredKeywords.map(keyword => capitalizeWords(keyword));
   const sortedKeywords = formattedKeywords.sort((a, b) => {

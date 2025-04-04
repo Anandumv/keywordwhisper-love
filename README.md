@@ -1,73 +1,122 @@
-# Welcome to your Lovable project
+# Trend Whisper Sheet Scribe with WhatsApp & Gemini Integration
 
-## Project info
+This application helps generate SEO keywords and optimized content for e-commerce products using WhatsApp integration and Google's Gemini AI.
 
-**URL**: https://lovable.dev/projects/4460cdab-72a4-4df7-afb4-d849cb1bd4a4
+## Features
 
-## How can I edit this code?
+- Generate SEO-optimized content using Gemini AI
+- WhatsApp integration for easy access
+- Support for multiple e-commerce platforms
+- Educational keyword prioritization
+- Category and age group detection
+- Feature and benefit extraction
+- AI-powered product descriptions
+- SEO-optimized titles and meta descriptions
 
-There are several ways of editing your application.
+## Setup
 
-**Use Lovable**
+1. Create a WhatsApp Business API account:
+   - Go to [Meta for Developers](https://developers.facebook.com/)
+   - Create a new app or use an existing one
+   - Enable WhatsApp Business API
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4460cdab-72a4-4df7-afb4-d849cb1bd4a4) and start prompting.
+2. Get a Gemini API key:
+   - Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a new API key
+   - Copy the key for configuration
 
-Changes made via Lovable will be committed automatically to this repo.
+3. Configure your environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the following variables:
+     ```
+     WHATSAPP_WEBHOOK_URL=https://graph.facebook.com/v17.0/YOUR_PHONE_NUMBER_ID/messages
+     WHATSAPP_ACCESS_TOKEN=your_access_token_here
+     WHATSAPP_VERIFY_TOKEN=your_verify_token_here
+     GEMINI_API_KEY=your_gemini_api_key_here
+     ```
 
-**Use your preferred IDE**
+4. Set up your webhook:
+   - Deploy your application
+   - Go to your Meta Developer Console
+   - Configure the webhook URL: `https://your-domain.com/api/whatsapp`
+   - Set the verify token to match your `WHATSAPP_VERIFY_TOKEN`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Using the WhatsApp Integration
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Send a message to your WhatsApp Business number
+2. Include a product description in your message
+3. The bot will respond with:
+   - SEO-optimized title
+   - Meta description
+   - Detailed product description
+   - Generated keywords
+   - SEO tips and best practices
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+Example message:
+```
+Generate SEO content for: Educational wooden blocks for toddlers with numbers and letters
 ```
 
-**Edit a file directly in GitHub**
+Example response:
+```
+🔍 *SEO-Optimized Content*
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+*Title:*
+Educational Wooden Alphabet Blocks - Interactive Learning Toys for Toddlers
 
-**Use GitHub Codespaces**
+*Meta Description:*
+Discover our educational wooden alphabet blocks, perfect for toddlers. Interactive learning toys that develop fine motor skills and early literacy.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+*Product Description:*
+[Detailed product description...]
 
-## What technologies are used for this project?
+*Keywords:*
+1. Educational Wooden Blocks
+2. Toddler Learning Toys
+3. Alphabet Learning Blocks
+4. Interactive Educational Toys
+5. Early Childhood Education
+[...]
 
-This project is built with:
+💡 *Tips:*
+• Use these keywords in your product title and description
+• Include keywords in image alt text
+• Use keywords in product URLs
+• Add keywords to product tags and categories
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Development
 
-## How can I deploy this project?
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/4460cdab-72a4-4df7-afb4-d849cb1bd4a4) and click on Share -> Publish.
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Can I connect a custom domain to my Lovable project?
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-Yes it is!
+## Environment Variables
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- `WHATSAPP_WEBHOOK_URL`: Your WhatsApp Business API webhook URL
+- `WHATSAPP_ACCESS_TOKEN`: Your WhatsApp Business API access token
+- `WHATSAPP_VERIFY_TOKEN`: Token for webhook verification
+- `GEMINI_API_KEY`: Your Google Gemini API key
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
