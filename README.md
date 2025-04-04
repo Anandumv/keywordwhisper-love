@@ -1,122 +1,100 @@
-# Trend Whisper Sheet Scribe with WhatsApp & Gemini Integration
+# TrendWhisper Sheet Scribe
 
-This application helps generate SEO keywords and optimized content for e-commerce products using WhatsApp integration and Google's Gemini AI.
+TrendWhisper Sheet Scribe is an advanced SEO keyword generator that leverages the power of Gemini AI to create comprehensive SEO packages for your products.
 
 ## Features
 
-- Generate SEO-optimized content using Gemini AI
-- WhatsApp integration for easy access
-- Support for multiple e-commerce platforms
-- Educational keyword prioritization
-- Category and age group detection
-- Feature and benefit extraction
-- AI-powered product descriptions
-- SEO-optimized titles and meta descriptions
+- Generate high-quality SEO keywords optimized for commercial intent
+- Receive comprehensive SEO packages including titles, descriptions, and content ideas
+- Platform-specific keyword suggestions for Amazon, Flipkart, Meesho, and Myntra
+- Keyword categorization by search intent and purpose
+- Modern, sleek user interface with dark theme
+- WhatsApp integration for on-the-go keyword generation
 
-## Setup
+## WhatsApp Integration
 
-1. Create a WhatsApp Business API account:
-   - Go to [Meta for Developers](https://developers.facebook.com/)
-   - Create a new app or use an existing one
-   - Enable WhatsApp Business API
+TrendWhisper now supports WhatsApp integration, allowing you to:
 
-2. Get a Gemini API key:
-   - Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - Copy the key for configuration
+1. Send a product name directly to our WhatsApp Business number and receive SEO keyword suggestions
+2. Use the web interface to send keyword suggestions to any WhatsApp number
+3. Set up your own WhatsApp Business API to handle product keyword requests
 
-3. Configure your environment variables:
+### Setting Up WhatsApp Integration
+
+To enable the WhatsApp integration:
+
+1. **Create a WhatsApp Business Account**:
+   - Go to [Facebook Developers](https://developers.facebook.com/)
+   - Create a WhatsApp Business app
+   - Set up your phone number ID
+
+2. **Configure Environment Variables**:
    - Copy `.env.example` to `.env`
-   - Update the following variables:
-     ```
-     WHATSAPP_WEBHOOK_URL=https://graph.facebook.com/v17.0/YOUR_PHONE_NUMBER_ID/messages
-     WHATSAPP_ACCESS_TOKEN=your_access_token_here
-     WHATSAPP_VERIFY_TOKEN=your_verify_token_here
-     GEMINI_API_KEY=your_gemini_api_key_here
-     ```
+   - Add your WhatsApp access token: `VITE_WHATSAPP_ACCESS_TOKEN`
+   - Add your phone number ID: `VITE_WHATSAPP_PHONE_NUMBER_ID`
+   - Create a verification token: `VITE_WHATSAPP_VERIFY_TOKEN`
 
-4. Set up your webhook:
-   - Deploy your application
-   - Go to your Meta Developer Console
-   - Configure the webhook URL: `https://your-domain.com/api/whatsapp`
-   - Set the verify token to match your `WHATSAPP_VERIFY_TOKEN`
+3. **Configure the Webhook**:
+   - In the Facebook Developer Portal, set up a webhook
+   - Use the URL: `https://your-domain.com/api/webhook`
+   - Use the verification token you created
+   - Subscribe to the `messages` webhook field
 
-## Using the WhatsApp Integration
-
-1. Send a message to your WhatsApp Business number
-2. Include a product description in your message
-3. The bot will respond with:
-   - SEO-optimized title
-   - Meta description
-   - Detailed product description
-   - Generated keywords
-   - SEO tips and best practices
-
-Example message:
-```
-Generate SEO content for: Educational wooden blocks for toddlers with numbers and letters
-```
-
-Example response:
-```
-🔍 *SEO-Optimized Content*
-
-*Title:*
-Educational Wooden Alphabet Blocks - Interactive Learning Toys for Toddlers
-
-*Meta Description:*
-Discover our educational wooden alphabet blocks, perfect for toddlers. Interactive learning toys that develop fine motor skills and early literacy.
-
-*Product Description:*
-[Detailed product description...]
-
-*Keywords:*
-1. Educational Wooden Blocks
-2. Toddler Learning Toys
-3. Alphabet Learning Blocks
-4. Interactive Educational Toys
-5. Early Childhood Education
-[...]
-
-💡 *Tips:*
-• Use these keywords in your product title and description
-• Include keywords in image alt text
-• Use keywords in product URLs
-• Add keywords to product tags and categories
-```
-
-## Development
-
-1. Install dependencies:
-   ```bash
-   npm install
+4. **Start the server**:
+   ```
+   node server.js
    ```
 
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+5. **Using WhatsApp Integration**:
+   - Text a product name directly to your WhatsApp Business phone number
+   - Or use the web interface to send keywords to any WhatsApp number
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+## Installation
 
-## Environment Variables
+1. Clone the repository:
+```
+git clone https://github.com/yourusername/trend-whisper-sheet-scribe.git
+cd trend-whisper-sheet-scribe
+```
 
-- `WHATSAPP_WEBHOOK_URL`: Your WhatsApp Business API webhook URL
-- `WHATSAPP_ACCESS_TOKEN`: Your WhatsApp Business API access token
-- `WHATSAPP_VERIFY_TOKEN`: Token for webhook verification
-- `GEMINI_API_KEY`: Your Google Gemini API key
+2. Install dependencies:
+```
+npm install
+```
 
-## Contributing
+3. Create a `.env` file:
+```
+cp .env.example .env
+```
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+4. Add your Gemini API key and WhatsApp credentials to the `.env` file.
+
+5. Start the development server:
+```
+npm run dev
+```
+
+6. For WhatsApp webhook support, start the Express server:
+```
+node server.js
+```
+
+## API Keys
+
+You'll need the following API keys:
+
+1. **Gemini API Key** - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. **WhatsApp Business API** - Set up through [Facebook Developers](https://developers.facebook.com/)
+
+## Technologies Used
+
+- React
+- TypeScript
+- Vite
+- Google Gemini AI
+- WhatsApp Business API
+- Express (for webhook server)
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.

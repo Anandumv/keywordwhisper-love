@@ -56,15 +56,10 @@ export class WhatsAppService {
     const seoContent = await this.geminiService.generateSEOContent(message.body);
     
     // Also generate keywords using our local algorithm for better coverage
-    const localKeywords = await generateEcommerceKeywords(message.body, {
-      includeCategories: true,
-      includeAgeGroups: true,
-      includeBenefits: true,
-      maxKeywords: 10
-    });
+    const localKeywords = await generateEcommerceKeywords(message.body, message.body);
 
     // Combine and deduplicate keywords
-    const allKeywords = [...new Set([...seoContent.keywords, ...localKeywords])];
+    const allKeywords = [...new Set([...seoContent.keywords, ...localKeywords.combinedKeywords])];
 
     // Format the response
     const response = this.formatSEOResponse(seoContent, allKeywords);

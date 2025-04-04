@@ -1,39 +1,47 @@
-import { fetchExternalKeywords } from './scraper';
+import { fetchExternalKeywords, ScrapedKeywords } from './scraper';
+import { generateKeywords } from './gemini';
 
-export interface KeywordGenerationOptions {
-  includeCategories?: boolean;
-  includeAgeGroups?: boolean;
-  includeBenefits?: boolean;
-  maxKeywords?: number;
+export interface KeywordGenerationResult {
+  internalKeywords: string[];
+  externalKeywords: ScrapedKeywords[];
+  combinedKeywords: string[];
 }
 
-export async function generateEcommerceKeywords(text: string, options: KeywordGenerationOptions = {}): Promise<string[]> {
-  const {
-    includeCategories = true,
-    includeAgeGroups = true,
-    includeBenefits = true,
-    maxKeywords = 20
-  } = options;
-
-  // Normalize and clean the input text
-  const normalizedText = text.toLowerCase();
+export async function generateEcommerceKeywords(
+  productName: string,
+  productDescription: string
+): Promise<KeywordGenerationResult> {
+  // Generate internal keywords using Gemini
+  const internalKeywords = await generateKeywords(productName, productDescription);
   
-  // Extract key product information
-  const productInfo = extractProductInformation(normalizedText);
+  // Fetch external keywords from e-commerce platforms
+  let externalKeywords: ScrapedKeywords[] = [];
+  try {
+    externalKeywords = await fetchExternalKeywords(productName);
+  } catch (error) {
+    console.error('Error fetching external keywords:', error);
+    // Continue with internal keywords only
+  }
   
-  // Generate targeted keywords based on product type and context
-  const keywords = generateKeywordsBasedOnContext(productInfo, normalizedText, {
-    includeCategories,
-    includeAgeGroups,
-    includeBenefits
+  // Combine all keywords
+  const allKeywords = new Set<string>();
+  
+  // Add internal keywords
+  internalKeywords.forEach(keyword => allKeywords.add(keyword.toLowerCase()));
+  
+  // Add external keywords from each platform
+  externalKeywords.forEach(source => {
+    source.keywords.forEach(keyword => allKeywords.add(keyword.toLowerCase()));
   });
   
-  // Fetch additional keywords from external sources
-  const externalKeywords = await fetchExternalKeywords(text);
-
-  // Combine internal and external keywords, then optimize and return
-  const combinedKeywords = [...keywords, ...externalKeywords];
-  return formatKeywords(combinedKeywords, maxKeywords);
+  // Convert back to array and sort
+  const combinedKeywords = Array.from(allKeywords).sort();
+  
+  return {
+    internalKeywords,
+    externalKeywords,
+    combinedKeywords
+  };
 }
 
 // Extract detailed product information from text

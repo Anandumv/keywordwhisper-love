@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { generateEcommerceKeywords } from "./keywordGeneration";
+// Remove the circular dependency
+// import { generateEcommerceKeywords } from "./keywordGeneration";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface GeminiResponse {
@@ -262,5 +263,48 @@ export class GeminiService {
       
       throw error;
     }
+  }
+}
+
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+
+export async function generateKeywords(
+  productName: string,
+  productDescription: string
+): Promise<string[]> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    
+    const prompt = `
+      Generate relevant SEO keywords for the following product:
+      
+      Product Name: ${productName}
+      Product Description: ${productDescription}
+      
+      Please provide a list of relevant keywords that would help this product rank well in e-commerce searches.
+      Include:
+      1. Product-specific keywords
+      2. Category keywords
+      3. Feature keywords
+      4. Benefit keywords
+      5. Target audience keywords
+      
+      Format the response as a comma-separated list of keywords.
+    `;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Parse the response into keywords
+    const keywords = text
+      .split(',')
+      .map(keyword => keyword.trim())
+      .filter(keyword => keyword.length > 0);
+    
+    return keywords;
+  } catch (error) {
+    console.error('Error generating keywords with Gemini:', error);
+    return [];
   }
 }

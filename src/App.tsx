@@ -1,38 +1,30 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import KeywordGenerator from "@/components/KeywordGenerator";
-import NotFound from "./pages/NotFound";
+import SimpleKeywordGenerator from "./components/SimpleKeywordGenerator";
+import './index.css';
 
-const queryClient = new QueryClient();
-
-const Home = () => (
-  <main className="min-h-screen bg-background p-4">
-    <div className="container mx-auto max-w-4xl">
-      <h1 className="text-3xl font-bold text-center mb-8">
-        SEO Content Generator
-      </h1>
-      <KeywordGenerator />
-    </div>
-  </main>
-);
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <>
+      <header className="app-header">
+        <div className="logo">
+          <div className="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </div>
+          <span>TrendWhisper</span>
+        </div>
+        <nav className="navigation">
+          <a href="#" className="nav-link active">Home</a>
+          <a href="#" className="nav-link">About</a>
+          <a href="#" className="nav-link">Contact</a>
+        </nav>
+      </header>
+    
+      <div className="app" style={{ padding: '7rem 2rem 4rem', minHeight: '100vh' }}>
+        <SimpleKeywordGenerator />
+      </div>
+    </>
+  );
+};
 
 export default App;
