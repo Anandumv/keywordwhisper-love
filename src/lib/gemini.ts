@@ -1,5 +1,5 @@
-
 import { toast } from "sonner";
+import { generateEcommerceKeywords } from "./keywordGeneration";
 
 interface GeminiResponse {
   candidates: {
@@ -23,9 +23,25 @@ export const generateKeywordSuggestions = async (
   }
 
   try {
-    // Use the correct API version and model name that's currently available
+    // First try to generate keywords locally using our algorithm
+    const localKeywords = generateEcommerceKeywords(product, {
+      includeCategories: true,
+      includeAgeGroups: true,
+      includeBenefits: true,
+      maxKeywords: 15
+    });
+    
+    // If we got enough keywords locally, return them
+    if (localKeywords.length >= 8) {
+      return localKeywords;
+    }
+    
+    // Otherwise, fallback to Gemini API
+    console.log("Local keywords insufficient, falling back to Gemini API");
+    
+    // Use the correct API version and model name
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
       {
         method: "POST",
         headers: {
@@ -60,13 +76,16 @@ export const generateKeywordSuggestions = async (
     if (!response.ok) {
       const error = await response.json();
       console.error("Gemini API error response:", error);
-      throw new Error(error.error?.message || "Failed to fetch keyword suggestions");
+      // If API fails, still return local keywords
+      console.log("Gemini API failed, using local keywords only");
+      return localKeywords;
     }
 
     const data = await response.json() as GeminiResponse;
     
     if (!data.candidates || data.candidates.length === 0) {
-      throw new Error("No suggestions returned from Gemini API");
+      console.log("No suggestions returned from Gemini API, using local keywords");
+      return localKeywords;
     }
     
     const suggestionsText = data.candidates[0].content.parts[0].text;
@@ -79,7 +98,9 @@ export const generateKeywordSuggestions = async (
       const suggestions = JSON.parse(jsonString);
       
       if (Array.isArray(suggestions)) {
-        return suggestions.slice(0, 10); // Ensure we only take up to 10 suggestions
+        // Combine with our local keywords for best results
+        const combinedKeywords = [...new Set([...suggestions, ...localKeywords])];
+        return combinedKeywords.slice(0, 15); // Return up to 15 unique keywords
       }
     } catch (parseError) {
       console.error("Error parsing Gemini response:", parseError);
@@ -90,14 +111,27 @@ export const generateKeywordSuggestions = async (
         .filter(line => line.length > 0 && !line.includes('```'));
       
       if (lines.length > 0) {
-        return lines.slice(0, 10);
+        // Combine with our local keywords
+        const combinedKeywords = [...new Set([...lines, ...localKeywords])];
+        return combinedKeywords.slice(0, 15);
       }
     }
     
-    throw new Error("Could not parse keyword suggestions from Gemini API");
+    // If we couldn't parse the API response, return local keywords
+    console.log("Could not parse keyword suggestions from Gemini API, using local keywords");
+    return localKeywords;
   } catch (error) {
     console.error("Error generating keyword suggestions:", error);
     toast.error(error instanceof Error ? error.message : "Failed to generate keyword suggestions");
-    return [];
+    
+    // If anything fails, still try to return local keywords
+    try {
+      return generateEcommerceKeywords(product, {
+        maxKeywords: 15
+      });
+    } catch (localError) {
+      console.error("Local keyword generation also failed:", localError);
+      return [];
+    }
   }
 };

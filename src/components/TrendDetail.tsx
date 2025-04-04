@@ -1,3 +1,4 @@
+
 import { useState, FormEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,9 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { TrendData } from "@/types/trend";
 import { formatDistanceToNow } from "date-fns";
-import { Download, Send, Save, Sparkles } from "lucide-react";
+import { Download, Send, Save } from "lucide-react";
 import { toast } from "sonner";
-import { generateKeywordSuggestions } from "@/lib/gemini";
 import { 
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import KeywordGenerator from "./KeywordGenerator";
 
 interface TrendDetailProps {
   trend: TrendData | null;
@@ -29,9 +29,7 @@ interface TrendDetailProps {
 const TrendDetail = ({ trend, isLoading, onUpdateTrend, hasGeminiKey = false }: TrendDetailProps) => {
   const [activeTab, setActiveTab] = useState("summary");
   const [message, setMessage] = useState("");
-  const [productQuery, setProductQuery] = useState("");
   const [generatingReport, setGeneratingReport] = useState(false);
-  const [generatingKeywords, setGeneratingKeywords] = useState(false);
   const { toast: uiToast } = useToast();
 
   if (isLoading && !trend) {
@@ -179,41 +177,14 @@ Report generated: ${new Date().toLocaleString()}
     setMessage("");
   };
 
-  const handleGenerateKeywords = async () => {
-    if (!hasGeminiKey) {
-      toast.error("Gemini API key is required. Please set it in API Settings.");
-      return;
-    }
-
-    if (!productQuery.trim()) {
-      toast.error("Please enter a product to analyze and generate keywords for.");
-      return;
-    }
-
-    setGeneratingKeywords(true);
-    
-    try {
-      const keywords = await generateKeywordSuggestions(trend.trending_keyword, productQuery);
-      
-      if (keywords.length > 0 && onUpdateTrend) {
-        const updatedTrend = {
-          ...trend,
-          relatedKeywords: keywords
-        };
-        
-        onUpdateTrend(updatedTrend);
-        
-        toast.success("Generated " + keywords.length + " e-commerce SEO keywords");
-        setProductQuery("");
-        setActiveTab("keywords");
-      } else {
-        toast.error("Failed to generate keyword suggestions");
-      }
-    } catch (error) {
-      console.error("Error generating keywords:", error);
-      toast.error("Failed to generate keywords: " + (error instanceof Error ? error.message : "Unknown error"));
-    } finally {
-      setGeneratingKeywords(false);
+  const handleKeywordsGenerated = (keywords: string[]) => {
+    if (onUpdateTrend) {
+      const updatedTrend = {
+        ...trend,
+        relatedKeywords: keywords
+      };
+      onUpdateTrend(updatedTrend);
+      setActiveTab("keywords");
     }
   };
 
@@ -281,25 +252,11 @@ Report generated: ${new Date().toLocaleString()}
 
         {hasGeminiKey && (
           <div className="mb-4">
-            <Card className="p-4 bg-white rounded-lg shadow-sm">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Generate E-commerce SEO Keywords</h3>
-              <div className="flex items-center space-x-2">
-                <Textarea
-                  placeholder="Enter a specific product (e.g., 'iPhone 13 Pro', 'Nike Air Max 270')"
-                  className="text-sm resize-none h-10 min-h-[40px] py-2"
-                  value={productQuery}
-                  onChange={(e) => setProductQuery(e.target.value)}
-                />
-                <Button
-                  onClick={handleGenerateKeywords}
-                  disabled={generatingKeywords || !productQuery.trim()}
-                  className="shrink-0 bg-[#128C7E] hover:bg-[#0e7166]"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {generatingKeywords ? "Analyzing..." : "Generate"}
-                </Button>
-              </div>
-            </Card>
+            <KeywordGenerator 
+              trendKeyword={trend.trending_keyword}
+              onKeywordsGenerated={handleKeywordsGenerated}
+              hasGeminiKey={hasGeminiKey}
+            />
           </div>
         )}
 
